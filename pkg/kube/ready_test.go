@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -266,53 +267,66 @@ func Test_ReadyChecker_jobReady(t *testing.T) {
 		name string
 		args args
 		want bool
+		err  bool
 	}{
 		{
 			name: "job is completed",
 			args: args{job: newJob("foo", 1, intToInt32(1), 1, 0)},
 			want: true,
+			err:  false,
 		},
 		{
 			name: "job is incomplete",
 			args: args{job: newJob("foo", 1, intToInt32(1), 0, 0)},
 			want: false,
+			err:  false,
 		},
 		{
 			name: "job is failed",
 			args: args{job: newJob("foo", 1, intToInt32(1), 0, 1)},
 			want: false,
+			err:  false,
 		},
 		{
 			name: "job is completed with retry",
 			args: args{job: newJob("foo", 1, intToInt32(1), 1, 1)},
 			want: true,
+			err:  false,
 		},
 		{
 			name: "job is failed with retry",
 			args: args{job: newJob("foo", 1, intToInt32(1), 0, 2)},
 			want: false,
+			err:  true,
 		},
 		{
 			name: "job is completed single run",
 			args: args{job: newJob("foo", 0, intToInt32(1), 1, 0)},
 			want: true,
+			err:  false,
 		},
 		{
 			name: "job is failed single run",
 			args: args{job: newJob("foo", 0, intToInt32(1), 0, 1)},
 			want: false,
+			err:  true,
 		},
 		{
 			name: "job with null completions",
 			args: args{job: newJob("foo", 0, nil, 1, 0)},
 			want: true,
+			err:  false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewReadyChecker(fake.NewSimpleClientset(), nil)
-			if got := c.jobReady(tt.args.job); got != tt.want {
-				t.Errorf("jobReady() = %v, want %v", got, tt.want)
+			got, err := c.jobReady(tt.args.job)
+			assert.Equal(t, tt.want, got)
+			if tt.err {
+				assert.Error(t, err)
+			} else {
+				assert.Nil(t, err)
 			}
 		})
 	}
